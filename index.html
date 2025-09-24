@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Key System</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #0d0d0f, #1c1c24);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: #e0e0e0;
+    }
+    .container {
+      text-align: center;
+      background: rgba(40, 40, 50, 0.9);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      max-width: 480px;
+      width: 100%;
+    }
+    h1 {
+      margin-bottom: 25px;
+      font-size: 1.8rem;
+      color: #b399ff;
+      letter-spacing: 1px;
+    }
+    input {
+      width: 80%;
+      padding: 12px;
+      border: 1px solid #3a3a4f;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 1rem;
+      background: #15151b;
+      color: #e0e0e0;
+      text-align: center;
+    }
+    input:focus {
+      outline: none;
+      border-color: #7d5fff;
+      box-shadow: 0 0 5px #7d5fff80;
+    }
+    button {
+      padding: 12px 22px;
+      border: none;
+      border-radius: 8px;
+      margin: 5px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #7d5fff, #5b3bc4);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(125,95,255,0.4);
+      transition: all 0.2s ease-in-out;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #6b4de0, #4c32a8);
+      box-shadow: 0 6px 15px rgba(125,95,255,0.6);
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 1rem;
+      color: #d4caff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔑 Key Redemption</h1>
+    <input type="text" id="keyInput" placeholder="Enter your key">
+    <br>
+    <button onclick="redeemKey()">Redeem</button>
+    <button onclick="checkKey()">Check</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    const PRELOADED_KEYS = [
+      { key: "Q9w$T1k!Zp8@Lv3#Xn6*Bf4^Gm7&Rd2", expires: Date.now() + 86400000 },
+      { key: "Jr6^Wv9#Hz2@Kq5*Lp1!Nx8$Tf4&Yb7", expires: Date.now() + 86400000 },
+      { key: "Gv8*Lp1#Xn3@Qw6!Rt9^Fb2$Jk4&Hz5", expires: Date.now() + 86400000 },
+    ];
+
+    let redeemedKeys = JSON.parse(localStorage.getItem("redeemedKeys")) || {};
+    let countdownInterval = null;
+
+    function redeemKey() {
+      const input = document.getElementById("keyInput").value.trim();
+      const keyObj = PRELOADED_KEYS.find(k => k.key === input);
+
+      if (!keyObj) {
+        document.getElementById("result").innerText = "❌ Invalid key.";
+        return;
+      }
+      if (redeemedKeys[input]) {
+        document.getElementById("result").innerText = "⚠️ Key already redeemed.";
+        return;
+      }
+      if (Date.now() > keyObj.expires) {
+        document.getElementById("result").innerText = "⏳ Key expired.";
+        return;
+      }
+
+      redeemedKeys[input] = {
+        redeemedAt: Date.now(),
+        expiresAt: keyObj.expires
+      };
+      localStorage.setItem("redeemedKeys", JSON.stringify(redeemedKeys));
+
+      document.getElementById("result").innerText = "✅ Key redeemed successfully!";
+    }
+
+    function checkKey() {
+      const input = document.getElementById("keyInput").value.trim();
+      const keyObj = PRELOADED_KEYS.find(k => k.key === input);
+
+      if (!keyObj) {
+        document.getElementById("result").innerText = "❌ Invalid key.";
+        return;
+      }
+
+      const saved = redeemedKeys[input];
+      if (!saved) {
+        document.getElementById("result").innerText = "⚠️ Key not redeemed yet.";
+        return;
+      }
+
+      updateCountdown(saved.expiresAt, input);
+    }
+
+    function updateCountdown(expiresAt, key) {
+      clearInterval(countdownInterval);
+
+      countdownInterval = setInterval(() => {
+        const remaining = expiresAt - Date.now();
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById("result").innerText = "❌ Key expired.";
+          redeemedKeys[key].expired = true;
+          localStorage.setItem("redeemedKeys", JSON.stringify(redeemedKeys));
+          return;
+        }
+
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+        document.getElementById("result").innerText =
+          `⏳ Key valid for ${days}d ${hours}h ${minutes}m ${seconds}s.`;
+      }, 1000);
+    }
+
+    // Auto-start countdown if a key is already redeemed
+    window.onload = () => {
+      const keys = Object.keys(redeemedKeys);
+      if (keys.length > 0) {
+        const firstKey = keys[0]; // load the first redeemed key
+        const saved = redeemedKeys[firstKey];
+        if (saved && !saved.expired) {
+          updateCountdown(saved.expiresAt, firstKey);
+        }
+      }
+    };
+  </script>
+</body>
+</html>
